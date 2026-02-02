@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Focus — Settings</title>
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body class="bg-bg-dark text-text-light min-h-screen font-sans">
+  <div class="max-w-lg mx-auto px-6 py-8">
+    <h1 class="text-xl font-bold mb-6">Settings</h1>
+
+    <!-- Timer Settings -->
+    <section class="mb-8">
+      <h2 class="text-sm text-white/40 uppercase tracking-wide font-medium mb-3">Timer</h2>
+      <div class="bg-card-dark rounded-lg p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <label for="work-duration" class="text-sm">Work duration (min)</label>
+          <input type="number" id="work-duration" min="1" max="120" class="input-field w-20 text-center" />
+        </div>
+        <div class="flex items-center justify-between">
+          <label for="break-duration" class="text-sm">Break duration (min)</label>
+          <input type="number" id="break-duration" min="1" max="60" class="input-field w-20 text-center" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Sound Settings -->
+    <section class="mb-8">
+      <h2 class="text-sm text-white/40 uppercase tracking-wide font-medium mb-3">Sound</h2>
+      <div class="bg-card-dark rounded-lg p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <label for="sound-enabled" class="text-sm">Notification sounds</label>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="sound-enabled" class="sr-only peer" />
+            <div class="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </div>
+        <div class="flex items-center justify-between">
+          <label for="sound-volume" class="text-sm">Volume</label>
+          <input type="range" id="sound-volume" min="0" max="100" class="w-32 accent-primary" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Blocking Settings -->
+    <section class="mb-8">
+      <h2 class="text-sm text-white/40 uppercase tracking-wide font-medium mb-3">Site Blocking</h2>
+      <div class="bg-card-dark rounded-lg p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <label for="blocking-enabled" class="text-sm">Enable site blocking</label>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="blocking-enabled" class="sr-only peer" />
+            <div class="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </div>
+
+        <!-- Custom blocked sites -->
+        <div>
+          <label class="text-sm text-white/60 block mb-2">Additional blocked sites</label>
+          <form id="add-blocked-form" class="flex gap-2 mb-2">
+            <input type="text" id="blocked-site-input" class="input-field flex-1" placeholder="example.com" />
+            <button type="submit" class="px-3 py-1.5 bg-work-red/20 text-work-red text-sm font-medium rounded-lg hover:bg-work-red/30 transition-colors">Block</button>
+          </form>
+          <div id="blocked-sites-list" class="space-y-1"></div>
+        </div>
+
+        <!-- Allowed sites (exceptions) -->
+        <div>
+          <label class="text-sm text-white/60 block mb-2">Exceptions (always allowed)</label>
+          <form id="add-allowed-form" class="flex gap-2 mb-2">
+            <input type="text" id="allowed-site-input" class="input-field flex-1" placeholder="example.com" />
+            <button type="submit" class="px-3 py-1.5 bg-break-green/20 text-break-green text-sm font-medium rounded-lg hover:bg-break-green/30 transition-colors">Allow</button>
+          </form>
+          <div id="allowed-sites-list" class="space-y-1"></div>
+        </div>
+
+        <!-- Default blocked sites (read-only) -->
+        <div>
+          <button id="toggle-defaults" class="text-sm text-white/40 hover:text-white/60 transition-colors">
+            Show default blocked sites
+          </button>
+          <div id="default-sites-list" class="hidden mt-2 space-y-1"></div>
+        </div>
+      </div>
+    </section>
+
+    <div id="save-status" class="text-sm text-break-green hidden text-center">Settings saved</div>
+  </div>
+
+  <script src="settings.ts" type="module"></script>
+</body>
+</html>

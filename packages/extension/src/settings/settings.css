@@ -1,0 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .input-field {
+    @apply bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30;
+  }
+
+  .site-tag {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-md text-xs text-white/60;
+  }
+  .site-tag button {
+    @apply text-white/30 hover:text-red-400 transition-colors;
+  }
+}
