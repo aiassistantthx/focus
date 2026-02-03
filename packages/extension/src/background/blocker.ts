@@ -2,9 +2,13 @@ import { getEffectiveBlockedDomains } from '../lib/blocklist';
 
 const RULE_ID_OFFSET = 1000;
 
-export async function enableBlocking(activeTaskId?: string | null): Promise<void> {
-  const domains = await getEffectiveBlockedDomains(activeTaskId);
-  if (domains.length === 0) return;
+export async function enableBlocking(activeTaskIds?: string[] | null): Promise<void> {
+  const domains = await getEffectiveBlockedDomains(activeTaskIds);
+  console.log('[Focus] enableBlocking called, domains to block:', domains.length, domains.slice(0, 5));
+  if (domains.length === 0) {
+    console.log('[Focus] No domains to block!');
+    return;
+  }
 
   const redirectUrl = chrome.runtime.getURL('blocked/blocked.html');
 
@@ -16,7 +20,7 @@ export async function enableBlocking(activeTaskId?: string | null): Promise<void
       redirect: { url: `${redirectUrl}?url=${encodeURIComponent(domain)}` },
     },
     condition: {
-      urlFilter: `||${domain}`,
+      requestDomains: [domain],
       resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
     },
   }));
@@ -29,6 +33,7 @@ export async function enableBlocking(activeTaskId?: string | null): Promise<void
     removeRuleIds,
     addRules,
   });
+  console.log('[Focus] Blocking rules applied:', addRules.length);
 }
 
 export async function disableBlocking(): Promise<void> {

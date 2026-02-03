@@ -16,14 +16,15 @@ import { runCleanup } from './cleanup';
 
 // --- Timer Logic ---
 
-async function startWorkTimer(taskId: string): Promise<TimerState> {
+async function startWorkTimer(taskIds: string[]): Promise<TimerState> {
   const settings = await getSettings();
   const durationMs = minutesToMs(settings.workDurationMin);
   const now = Date.now();
 
   const state: TimerState = {
     status: 'work',
-    activeTaskId: taskId,
+    activeTaskId: taskIds[0] || null, // Keep for backwards compat
+    activeTaskIds: taskIds,
     startedAt: now,
     remainingMs: durationMs,
   };
@@ -31,8 +32,8 @@ async function startWorkTimer(taskId: string): Promise<TimerState> {
   await saveTimerState(state);
   await chrome.alarms.create(ALARM_WORK_END, { delayInMinutes: settings.workDurationMin });
 
-  // Enable site blocking (with task-specific exceptions)
-  await enableBlocking(taskId);
+  // Enable site blocking (with task-specific exceptions from all tasks)
+  await enableBlocking(taskIds);
 
   // Update badge
   updateBadge(state);
@@ -49,6 +50,7 @@ async function startBreakTimer(): Promise<TimerState> {
   const state: TimerState = {
     status: 'break',
     activeTaskId: prevState.activeTaskId,
+    activeTaskIds: prevState.activeTaskIds || [],
     startedAt: now,
     remainingMs: durationMs,
   };
@@ -71,6 +73,7 @@ async function stopTimer(): Promise<TimerState> {
   const state: TimerState = {
     status: 'idle',
     activeTaskId: null,
+    activeTaskIds: [],
     startedAt: null,
     remainingMs: 0,
   };
@@ -82,35 +85,197 @@ async function stopTimer(): Promise<TimerState> {
   return state;
 }
 
+async function pauseTimer(): Promise<TimerState> {
+  const currentState = await getTimerState();
+
+  // Can only pause work or break
+  if (currentState.status !== 'work' && currentState.status !== 'break') {
+    return currentState;
+  }
+
+  // Clear alarms
+  await chrome.alarms.clear(ALARM_WORK_END);
+  await chrome.alarms.clear(ALARM_BREAK_END);
+
+  // Calculate remaining time
+  const elapsed = currentState.startedAt ? Date.now() - currentState.startedAt : 0;
+  const remaining = Math.max(0, currentState.remainingMs - elapsed);
+
+  const state: TimerState = {
+    status: 'paused',
+    activeTaskId: currentState.activeTaskId,
+    activeTaskIds: currentState.activeTaskIds || [],
+    startedAt: null,
+    remainingMs: remaining,
+    pausedPhase: currentState.status,
+  };
+
+  await saveTimerState(state);
+  await disableBlocking();
+
+  // Update badge to show paused state
+  const minutes = Math.ceil(remaining / 60000);
+  chrome.action.setBadgeText({ text: `||${minutes}` });
+  chrome.action.setBadgeBackgroundColor({ color: '#F39C12' });
+
+  return state;
+}
+
+async function resumeTimer(): Promise<TimerState> {
+  const currentState = await getTimerState();
+
+  // Can only resume if paused
+  if (currentState.status !== 'paused' || !currentState.pausedPhase) {
+    return currentState;
+  }
+
+  const now = Date.now();
+  const delayInMinutes = currentState.remainingMs / 60000;
+
+  const state: TimerState = {
+    status: currentState.pausedPhase,
+    activeTaskId: currentState.activeTaskId,
+    activeTaskIds: currentState.activeTaskIds || [],
+    startedAt: now,
+    remainingMs: currentState.remainingMs,
+  };
+
+  await saveTimerState(state);
+
+  // Set alarm for remaining time
+  if (currentState.pausedPhase === 'work') {
+    await chrome.alarms.create(ALARM_WORK_END, { delayInMinutes });
+    await enableBlocking(currentState.activeTaskIds || []);
+  } else {
+    await chrome.alarms.create(ALARM_BREAK_END, { delayInMinutes });
+  }
+
+  updateBadge(state);
+
+  return state;
+}
+
+async function skipBreak(): Promise<TimerState> {
+  const currentState = await getTimerState();
+
+  // Can only skip break
+  if (currentState.status !== 'break') {
+    return currentState;
+  }
+
+  // Clear break alarm
+  await chrome.alarms.clear(ALARM_BREAK_END);
+
+  // Go idle with tasks still selected, so user can start next pomodoro
+  const state: TimerState = {
+    status: 'idle',
+    activeTaskId: currentState.activeTaskId,
+    activeTaskIds: currentState.activeTaskIds || [],
+    startedAt: null,
+    remainingMs: 0,
+  };
+
+  await saveTimerState(state);
+  chrome.action.setBadgeText({ text: '' });
+
+  return state;
+}
+
+async function addTaskToTimer(taskId: string): Promise<TimerState> {
+  const currentState = await getTimerState();
+
+  // Can only add tasks during work or paused (during work phase)
+  if (currentState.status !== 'work' && !(currentState.status === 'paused' && currentState.pausedPhase === 'work')) {
+    return currentState;
+  }
+
+  const taskIds = currentState.activeTaskIds || [];
+  if (taskIds.includes(taskId)) {
+    return currentState; // Already in list
+  }
+
+  const state: TimerState = {
+    ...currentState,
+    activeTaskIds: [...taskIds, taskId],
+    activeTaskId: currentState.activeTaskId || taskId, // Keep backwards compat
+  };
+
+  await saveTimerState(state);
+
+  // Re-enable blocking with new task's exceptions
+  if (currentState.status === 'work') {
+    await enableBlocking(state.activeTaskIds);
+  }
+
+  return state;
+}
+
+async function removeTaskFromTimer(taskId: string): Promise<TimerState> {
+  const currentState = await getTimerState();
+
+  // Can only remove tasks during work or paused
+  if (currentState.status !== 'work' && currentState.status !== 'paused') {
+    return currentState;
+  }
+
+  const taskIds = currentState.activeTaskIds || [];
+  const newTaskIds = taskIds.filter((id) => id !== taskId);
+
+  // If no tasks left, stop the timer
+  if (newTaskIds.length === 0) {
+    return stopTimer();
+  }
+
+  const state: TimerState = {
+    ...currentState,
+    activeTaskIds: newTaskIds,
+    activeTaskId: newTaskIds[0], // Keep backwards compat
+  };
+
+  await saveTimerState(state);
+
+  // Re-enable blocking with updated task exceptions
+  if (currentState.status === 'work') {
+    await enableBlocking(state.activeTaskIds);
+  }
+
+  return state;
+}
+
 async function onWorkEnd(): Promise<void> {
   const state = await getTimerState();
   const settings = await getSettings();
+  const taskIds = state.activeTaskIds || (state.activeTaskId ? [state.activeTaskId] : []);
 
-  if (state.activeTaskId) {
+  if (taskIds.length > 0) {
     const workDurationMs = minutesToMs(settings.workDurationMin);
+    // Time is split equally among all active tasks
+    const timePerTask = Math.floor(workDurationMs / taskIds.length);
+    const today = getToday();
 
-    // Update task work time
-    const task = await getTask(state.activeTaskId);
-    if (task) {
-      await updateTask(state.activeTaskId, {
-        totalWorkTime: task.totalWorkTime + workDurationMs,
-        pomodoroCount: task.pomodoroCount + 1,
+    // Update each task
+    for (const taskId of taskIds) {
+      const task = await getTask(taskId);
+      if (task) {
+        await updateTask(taskId, {
+          totalWorkTime: task.totalWorkTime + timePerTask,
+          pomodoroCount: task.pomodoroCount + 1,
+        });
+      }
+
+      // Record pomodoro for each task
+      await addPomodoroRecord({
+        id: generateId(),
+        taskId: taskId,
+        date: today,
+        startedAt: state.startedAt!,
+        endedAt: Date.now(),
+        type: 'work',
+        durationMs: timePerTask,
       });
     }
 
-    // Record pomodoro
-    const today = getToday();
-    await addPomodoroRecord({
-      id: generateId(),
-      taskId: state.activeTaskId,
-      date: today,
-      startedAt: state.startedAt!,
-      endedAt: Date.now(),
-      type: 'work',
-      durationMs: workDurationMs,
-    });
-
-    // Update daily stats
+    // Update daily stats (total session time, not per-task)
     const stats = await getDailyStatsForDate(today);
     await updateDailyStats(today, {
       totalPomodoros: stats.totalPomodoros + 1,
@@ -137,6 +302,7 @@ async function onBreakEnd(): Promise<void> {
   const idleState: TimerState = {
     status: 'idle',
     activeTaskId: state.activeTaskId,
+    activeTaskIds: state.activeTaskIds || [],
     startedAt: null,
     remainingMs: 0,
   };
@@ -154,6 +320,13 @@ async function onBreakEnd(): Promise<void> {
 function updateBadge(state: TimerState): void {
   if (state.status === 'idle') {
     chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+
+  if (state.status === 'paused') {
+    const minutes = Math.ceil(state.remainingMs / 60000);
+    chrome.action.setBadgeText({ text: `||${minutes}` });
+    chrome.action.setBadgeBackgroundColor({ color: '#F39C12' });
     return;
   }
 
@@ -203,7 +376,8 @@ async function playSound(sound: 'work-end' | 'break-end'): Promise<void> {
   const settings = await getSettings();
   if (!settings.soundEnabled) return;
   await ensureOffscreen();
-  chrome.runtime.sendMessage({ type: 'PLAY_SOUND', sound } satisfies MessageType);
+  const volume = settings.soundVolume / 100;
+  chrome.runtime.sendMessage({ type: 'PLAY_SOUND', sound, volume } satisfies MessageType);
 }
 
 // --- Messaging ---
@@ -226,7 +400,23 @@ function broadcastPhaseComplete(phase: 'work' | 'break'): void {
 
 chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendResponse) => {
   if (message.type === 'START_TIMER') {
-    startWorkTimer(message.taskId).then((state) => {
+    startWorkTimer(message.taskIds).then((state) => {
+      sendResponse({ state });
+      broadcastState(state);
+    });
+    return true;
+  }
+
+  if (message.type === 'ADD_TASK_TO_TIMER') {
+    addTaskToTimer(message.taskId).then((state) => {
+      sendResponse({ state });
+      broadcastState(state);
+    });
+    return true;
+  }
+
+  if (message.type === 'REMOVE_TASK_FROM_TIMER') {
+    removeTaskFromTimer(message.taskId).then((state) => {
       sendResponse({ state });
       broadcastState(state);
     });
@@ -241,13 +431,33 @@ chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendRespons
     return true;
   }
 
+  if (message.type === 'PAUSE_TIMER') {
+    pauseTimer().then((state) => {
+      sendResponse({ state });
+      broadcastState(state);
+    });
+    return true;
+  }
+
+  if (message.type === 'RESUME_TIMER') {
+    resumeTimer().then((state) => {
+      sendResponse({ state });
+      broadcastState(state);
+    });
+    return true;
+  }
+
+  if (message.type === 'SKIP_BREAK') {
+    skipBreak().then((state) => {
+      sendResponse({ state });
+      broadcastState(state);
+    });
+    return true;
+  }
+
   if (message.type === 'GET_TIMER_STATE') {
     getTimerState().then((state) => {
-      // Recalculate remaining
-      if (state.startedAt && state.status !== 'idle') {
-        const elapsed = Date.now() - state.startedAt;
-        state.remainingMs = Math.max(0, state.remainingMs - elapsed);
-      }
+      // Return raw state — clients calculate elapsed time locally using startedAt
       sendResponse({ state });
     });
     return true;
@@ -282,7 +492,7 @@ chrome.runtime.onStartup.addListener(async () => {
   // Restore timer state and re-enable blocking if needed
   const state = await getTimerState();
   if (state.status === 'work') {
-    await enableBlocking(state.activeTaskId);
+    await enableBlocking(state.activeTaskIds || []);
     updateBadge(state);
   }
 });

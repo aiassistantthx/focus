@@ -140,12 +140,20 @@ export async function removeTaskFromToday(taskId: string): Promise<void> {
 // --- Timer State ---
 
 export async function getTimerState(): Promise<TimerState> {
-  return get<TimerState>(STORAGE_KEYS.TIMER_STATE, {
+  const state = await get<TimerState>(STORAGE_KEYS.TIMER_STATE, {
     status: 'idle',
     activeTaskId: null,
+    activeTaskIds: [],
     startedAt: null,
     remainingMs: 0,
   });
+  // Migration: if old format with single activeTaskId, convert to array
+  if (!state.activeTaskIds && state.activeTaskId) {
+    state.activeTaskIds = [state.activeTaskId];
+  } else if (!state.activeTaskIds) {
+    state.activeTaskIds = [];
+  }
+  return state;
 }
 
 export async function saveTimerState(state: TimerState): Promise<void> {

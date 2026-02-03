@@ -16,10 +16,12 @@ export interface DayPlan {
 }
 
 export interface TimerState {
-  status: 'idle' | 'work' | 'break';
-  activeTaskId: string | null;
+  status: 'idle' | 'work' | 'break' | 'paused';
+  activeTaskId: string | null; // Deprecated, use activeTaskIds
+  activeTaskIds: string[]; // Multiple tasks can be active
   startedAt: number | null;
   remainingMs: number;
+  pausedPhase?: 'work' | 'break'; // Which phase was paused
 }
 
 export interface PomodoroRecord {
@@ -50,9 +52,14 @@ export interface DailyStats {
 }
 
 export type MessageType =
-  | { type: 'START_TIMER'; taskId: string }
+  | { type: 'START_TIMER'; taskIds: string[] }
+  | { type: 'ADD_TASK_TO_TIMER'; taskId: string }
+  | { type: 'REMOVE_TASK_FROM_TIMER'; taskId: string }
   | { type: 'STOP_TIMER' }
+  | { type: 'PAUSE_TIMER' }
+  | { type: 'RESUME_TIMER' }
+  | { type: 'SKIP_BREAK' }
   | { type: 'GET_TIMER_STATE' }
   | { type: 'TIMER_STATE_UPDATED'; state: TimerState }
   | { type: 'TIMER_PHASE_COMPLETE'; phase: 'work' | 'break' }
-  | { type: 'PLAY_SOUND'; sound: 'work-end' | 'break-end' };
+  | { type: 'PLAY_SOUND'; sound: 'work-end' | 'break-end'; volume: number };

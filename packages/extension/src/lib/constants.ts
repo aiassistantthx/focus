@@ -1,6 +1,6 @@
 export const DEFAULT_WORK_DURATION_MIN = 50;
 export const DEFAULT_BREAK_DURATION_MIN = 10;
-export const MAX_DAILY_TASKS = 3;
+export const MAX_DAILY_TASKS = 5;
 export const TASK_EXPIRY_DAYS = 7;
 export const TASK_EXPIRY_WARNING_DAYS = 3;
 

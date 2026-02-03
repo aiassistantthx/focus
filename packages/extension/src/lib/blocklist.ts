@@ -1,18 +1,20 @@
 import { DEFAULT_BLOCKED_SITES } from './constants';
 import { getSettings, getTask } from './storage';
 
-export async function getEffectiveBlockedDomains(activeTaskId?: string | null): Promise<string[]> {
+export async function getEffectiveBlockedDomains(activeTaskIds?: string[] | null): Promise<string[]> {
   const settings = await getSettings();
   if (!settings.blockingEnabled) return [];
 
   const allowSet = new Set(settings.allowedSites.map((s) => s.toLowerCase()));
 
-  // Add task-specific site exceptions
-  if (activeTaskId) {
-    const task = await getTask(activeTaskId);
-    if (task?.siteExceptions) {
-      for (const site of task.siteExceptions) {
-        allowSet.add(site.toLowerCase());
+  // Add task-specific site exceptions from all active tasks
+  if (activeTaskIds && activeTaskIds.length > 0) {
+    for (const taskId of activeTaskIds) {
+      const task = await getTask(taskId);
+      if (task?.siteExceptions) {
+        for (const site of task.siteExceptions) {
+          allowSet.add(site.toLowerCase());
+        }
       }
     }
   }

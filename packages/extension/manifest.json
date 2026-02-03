@@ -3,7 +3,7 @@
   "name": "Focus",
   "version": "1.0.0",
   "description": "Pomodoro timer with task management and site blocking",
-  "permissions": ["storage", "alarms", "declarativeNetRequest", "offscreen"],
+  "permissions": ["storage", "alarms", "declarativeNetRequest", "declarativeNetRequestFeedback", "offscreen"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background/service-worker.js",

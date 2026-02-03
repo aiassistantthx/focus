@@ -44,9 +44,27 @@ async function updateTimer(): Promise<void> {
   const timerEl = document.getElementById('timer-display');
   const taskEl = document.getElementById('task-name');
 
+  // If no longer in a work session, the site is unblocked — navigate away
+  if (state.status !== 'work') {
+    const params = new URLSearchParams(window.location.search);
+    const blockedUrl = params.get('url');
+    if (blockedUrl) {
+      window.location.href = `https://${blockedUrl}`;
+    } else if (history.length > 1) {
+      history.back();
+    }
+    return;
+  }
+
   if (timerEl) {
-    if (state.status !== 'idle' && state.remainingMs > 0) {
-      timerEl.textContent = formatTime(state.remainingMs);
+    // Calculate remaining time locally for accurate sync with popup
+    let remaining = state.remainingMs;
+    if (state.startedAt) {
+      const elapsed = Date.now() - state.startedAt;
+      remaining = Math.max(0, state.remainingMs - elapsed);
+    }
+    if (remaining > 0) {
+      timerEl.textContent = formatTime(remaining);
     } else {
       timerEl.textContent = '--:--';
     }
