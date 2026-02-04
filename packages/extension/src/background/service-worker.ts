@@ -463,6 +463,16 @@ chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendRespons
     return true;
   }
 
+  if (message.type === 'REFRESH_BLOCKING') {
+    getTimerState().then(async (state) => {
+      if (state.status === 'work') {
+        await enableBlocking(state.activeTaskIds || []);
+      }
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
   return false;
 });
 

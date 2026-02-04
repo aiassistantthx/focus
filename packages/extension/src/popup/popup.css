@@ -22,7 +22,33 @@
     @apply px-2 py-1 text-white/50 text-sm hover:text-white hover:bg-white/10 rounded-lg transition-colors;
   }
   .btn-icon {
-    @apply p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors;
+    @apply p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors relative;
+  }
+
+  /* Fast tooltip for icon buttons */
+  .btn-icon[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    font-size: 11px;
+    white-space: nowrap;
+    border-radius: 4px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.1s, visibility 0.1s;
+    pointer-events: none;
+    z-index: 100;
+    margin-bottom: 4px;
+  }
+  .btn-icon[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0.15s;
   }
 
   .task-card {

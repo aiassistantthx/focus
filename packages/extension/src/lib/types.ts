@@ -60,6 +60,7 @@ export type MessageType =
   | { type: 'RESUME_TIMER' }
   | { type: 'SKIP_BREAK' }
   | { type: 'GET_TIMER_STATE' }
+  | { type: 'REFRESH_BLOCKING' }
   | { type: 'TIMER_STATE_UPDATED'; state: TimerState }
   | { type: 'TIMER_PHASE_COMPLETE'; phase: 'work' | 'break' }
   | { type: 'PLAY_SOUND'; sound: 'work-end' | 'break-end'; volume: number };

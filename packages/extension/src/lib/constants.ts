@@ -61,6 +61,16 @@ export const DEFAULT_BLOCKED_SITES: string[] = [
   'news.ycombinator.com',
 ];
 
+// Subdomains of blocked sites that should always be allowed
+export const DEFAULT_ALLOWED_SUBDOMAINS: string[] = [
+  'music.youtube.com',
+];
+
+// Paths on blocked sites that should always be allowed (domain/path format)
+export const DEFAULT_ALLOWED_PATHS: string[] = [
+  'x.com/i/grok',
+];
+
 export const DEFAULT_SETTINGS = {
   workDurationMin: DEFAULT_WORK_DURATION_MIN,
   breakDurationMin: DEFAULT_BREAK_DURATION_MIN,

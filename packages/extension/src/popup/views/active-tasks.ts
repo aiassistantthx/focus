@@ -215,10 +215,10 @@ function renderWorkingTaskCard(task: Task): string {
       <div class="flex items-center gap-1 mt-2">
         <span class="badge badge-warning">Working...</span>
         <div class="flex-1"></div>
-        <button class="btn-icon task-action" data-action="complete" data-task-id="${task.id}" title="Complete">
+        <button class="btn-icon task-action" data-action="complete" data-task-id="${task.id}" data-tooltip="Complete">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
         </button>
-        <button class="btn-icon remove-task-btn" data-task-id="${task.id}" title="Remove from session">
+        <button class="btn-icon remove-task-btn" data-task-id="${task.id}" data-tooltip="Remove from session">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
@@ -239,13 +239,28 @@ function renderAddableTaskCard(task: Task, timerState: TimerState): string {
 
   return `
     <div class="task-card" data-task-id="${task.id}">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between mb-1">
         <span class="text-sm font-medium truncate flex-1 mr-2">${escapeHtml(task.title)}</span>
         <div class="flex items-center gap-2">
           ${timeSpent}
           ${pomodoroCount}
           <button class="btn-ghost text-xs add-task-btn" data-task-id="${task.id}">+ Add</button>
         </div>
+      </div>
+      <div class="flex items-center gap-1 mt-2">
+        <div class="flex-1"></div>
+        <button class="btn-icon task-action" data-action="complete" data-task-id="${task.id}" data-tooltip="Complete">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        </button>
+        <button class="btn-icon task-action" data-action="tomorrow" data-task-id="${task.id}" data-tooltip="Tomorrow">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+        </button>
+        <button class="btn-icon task-action" data-action="backlog" data-task-id="${task.id}" data-tooltip="Backlog">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2"/></svg>
+        </button>
+        <button class="btn-icon task-action text-red-400/50 hover:text-red-400" data-action="delete" data-task-id="${task.id}" data-tooltip="Delete">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
       </div>
     </div>
   `;
@@ -273,16 +288,16 @@ function renderIdleTaskCard(task: Task): string {
       </div>
       <div class="flex items-center gap-1 mt-2">
         <div class="flex-1"></div>
-        <button class="btn-icon task-action" data-action="complete" data-task-id="${task.id}" title="Complete">
+        <button class="btn-icon task-action" data-action="complete" data-task-id="${task.id}" data-tooltip="Complete">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
         </button>
-        <button class="btn-icon task-action" data-action="tomorrow" data-task-id="${task.id}" title="Move to tomorrow">
+        <button class="btn-icon task-action" data-action="tomorrow" data-task-id="${task.id}" data-tooltip="Tomorrow">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
         </button>
-        <button class="btn-icon task-action" data-action="backlog" data-task-id="${task.id}" title="Move to backlog">
+        <button class="btn-icon task-action" data-action="backlog" data-task-id="${task.id}" data-tooltip="Backlog">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2"/></svg>
         </button>
-        <button class="btn-icon task-action text-red-400/50 hover:text-red-400" data-action="delete" data-task-id="${task.id}" title="Delete">
+        <button class="btn-icon task-action text-red-400/50 hover:text-red-400" data-action="delete" data-task-id="${task.id}" data-tooltip="Delete">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>
       </div>
@@ -424,6 +439,8 @@ function attachExceptionHandlers(container: HTMLElement, onRefresh: () => void):
       }
 
       await updateTask(taskId, { siteExceptions: [...exceptions, site] });
+      // Refresh blocking rules with new exception
+      await chrome.runtime.sendMessage({ type: 'REFRESH_BLOCKING' });
       onRefresh();
     });
   });
@@ -441,6 +458,8 @@ function attachExceptionHandlers(container: HTMLElement, onRefresh: () => void):
 
       const exceptions = (task.siteExceptions ?? []).filter((s) => s !== site);
       await updateTask(taskId, { siteExceptions: exceptions });
+      // Refresh blocking rules after removing exception
+      await chrome.runtime.sendMessage({ type: 'REFRESH_BLOCKING' });
       onRefresh();
     });
   });
