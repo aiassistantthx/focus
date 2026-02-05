@@ -9,34 +9,46 @@ export async function enableBlocking(activeTaskIds?: string[] | null): Promise<v
     'excluded subdomains:', config.excludedSubdomains,
     'allowed paths:', config.allowedUrlFilters);
 
+  // Always remove old rules first
+  const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+  const removeRuleIds = existingRules.map((r) => r.id);
+
   if (config.blockedDomains.length === 0) {
-    console.log('[Focus] No domains to block!');
+    // No domains to block — just clear existing rules
+    if (removeRuleIds.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules: [] });
+    }
     return;
   }
 
   const redirectUrl = chrome.runtime.getURL('blocked/blocked.html');
 
   // Block rules for each domain, with subdomain exclusions
-  const blockRules: chrome.declarativeNetRequest.Rule[] = config.blockedDomains.map((domain, i) => ({
-    id: BLOCK_RULE_ID_OFFSET + i,
-    priority: 1,
-    action: {
-      type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
-      redirect: { url: `${redirectUrl}?url=${encodeURIComponent(domain)}` },
-    },
-    condition: {
+  const blockRules: chrome.declarativeNetRequest.Rule[] = config.blockedDomains.map((domain, i) => {
+    const condition: chrome.declarativeNetRequest.RuleCondition = {
       requestDomains: [domain],
-      excludedRequestDomains: config.excludedSubdomains.length > 0 ? config.excludedSubdomains : undefined,
       resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
-    },
-  }));
+    };
+    if (config.excludedSubdomains.length > 0) {
+      condition.excludedRequestDomains = config.excludedSubdomains;
+    }
+    return {
+      id: BLOCK_RULE_ID_OFFSET + i,
+      priority: 1,
+      action: {
+        type: chrome.declarativeNetRequest.RuleActionType.REDIRECT as chrome.declarativeNetRequest.RuleActionType,
+        redirect: { url: `${redirectUrl}?url=${encodeURIComponent(domain)}` },
+      },
+      condition,
+    };
+  });
 
   // ALLOW rules for path-based exceptions (higher priority)
   const allowRules: chrome.declarativeNetRequest.Rule[] = config.allowedUrlFilters.map((filter, i) => ({
     id: ALLOW_RULE_ID_OFFSET + i,
     priority: 2,
     action: {
-      type: chrome.declarativeNetRequest.RuleActionType.ALLOW,
+      type: chrome.declarativeNetRequest.RuleActionType.ALLOW as chrome.declarativeNetRequest.RuleActionType,
     },
     condition: {
       urlFilter: filter,
@@ -45,10 +57,6 @@ export async function enableBlocking(activeTaskIds?: string[] | null): Promise<v
   }));
 
   const addRules = [...blockRules, ...allowRules];
-
-  // Remove old rules first
-  const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-  const removeRuleIds = existingRules.map((r) => r.id);
 
   await chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds,

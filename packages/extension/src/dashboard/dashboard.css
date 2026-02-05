@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .period-btn {
+    @apply px-4 py-2 text-sm font-medium text-white/50 rounded-md transition-colors;
+  }
+  .period-btn:hover {
+    @apply text-white/70;
+  }
+  .period-btn.active {
+    @apply bg-primary text-white;
+  }
+
+  .chart-mode-btn {
+    @apply px-3 py-1 text-xs font-medium text-white/50 rounded-md transition-colors;
+  }
+  .chart-mode-btn:hover {
+    @apply text-white/70;
+  }
+  .chart-mode-btn.active {
+    @apply bg-white/10 text-white;
+  }
+
+  .stat-card {
+    @apply bg-card-dark rounded-xl p-5 border border-white/5;
+  }
+  .stat-icon {
+    @apply w-12 h-12 rounded-lg flex items-center justify-center mb-3;
+  }
+  .stat-value {
+    @apply text-3xl font-bold mb-1;
+  }
+  .stat-label {
+    @apply text-sm text-white/40;
+  }
+
+  .chart-card {
+    @apply bg-card-dark rounded-xl p-5 border border-white/5;
+  }
+
+  .task-row {
+    @apply flex items-center justify-between py-3 px-4 bg-white/5 rounded-lg;
+  }
+  .task-row:hover {
+    @apply bg-white/10;
+  }
+}
+
+/* Chart tooltip */
+.chart-tooltip {
+  position: absolute;
+  transform: translateX(-50%) translateY(-100%);
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.chart-dot {
+  transition: r 0.1s;
+}
+
+.chart-dot:hover {
+  r: 7;
+}
+
+/* Pie Chart */
+.pie-chart-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.pie-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.pie-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* Date picker styling */
+input[type="date"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}

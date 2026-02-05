@@ -1,9 +1,8 @@
 import { TimerState, MessageType } from '../lib/types';
 import { renderActiveTasks } from './views/active-tasks';
 import { renderBacklog } from './views/backlog';
-import { renderStats } from './views/stats';
 
-type ViewName = 'tasks' | 'backlog' | 'stats';
+type ViewName = 'tasks' | 'backlog';
 let currentView: ViewName = 'tasks';
 
 // --- Navigation ---
@@ -31,6 +30,11 @@ document.querySelectorAll('.nav-btn[data-view]').forEach((btn) => {
 // Settings button opens options page
 document.getElementById('nav-settings')?.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
+});
+
+// Stats button opens dashboard in new tab
+document.getElementById('nav-stats')?.addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') });
 });
 
 // --- Timer State ---
@@ -64,11 +68,6 @@ async function refreshCurrentView(): Promise<void> {
     case 'backlog': {
       const container = document.getElementById('view-backlog')!;
       await renderBacklog(container, refreshCurrentView);
-      break;
-    }
-    case 'stats': {
-      const container = document.getElementById('view-stats')!;
-      await renderStats(container);
       break;
     }
   }

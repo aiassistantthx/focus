@@ -9,7 +9,7 @@ import {
   updateDailyStats,
 } from '../lib/storage';
 import { TimerState, MessageType } from '../lib/types';
-import { ALARM_WORK_END, ALARM_BREAK_END, ALARM_DAILY_CLEANUP } from '../lib/constants';
+import { ALARM_WORK_END, ALARM_BREAK_END, ALARM_DAILY_CLEANUP, ALARM_BADGE_UPDATE } from '../lib/constants';
 import { generateId, getToday, minutesToMs } from '../lib/utils';
 import { enableBlocking, disableBlocking } from './blocker';
 import { runCleanup } from './cleanup';
@@ -32,11 +32,17 @@ async function startWorkTimer(taskIds: string[]): Promise<TimerState> {
   await saveTimerState(state);
   await chrome.alarms.create(ALARM_WORK_END, { delayInMinutes: settings.workDurationMin });
 
+  // Touch tasks to update lastInteractedAt (prevents auto-deletion)
+  for (const taskId of taskIds) {
+    await updateTask(taskId, {});
+  }
+
   // Enable site blocking (with task-specific exceptions from all tasks)
   await enableBlocking(taskIds);
 
-  // Update badge
+  // Update badge and start periodic badge alarm
   updateBadge(state);
+  await startBadgeAlarm();
 
   return state;
 }
@@ -69,6 +75,7 @@ async function startBreakTimer(): Promise<TimerState> {
 async function stopTimer(): Promise<TimerState> {
   await chrome.alarms.clear(ALARM_WORK_END);
   await chrome.alarms.clear(ALARM_BREAK_END);
+  await stopBadgeAlarm();
 
   const state: TimerState = {
     status: 'idle',
@@ -201,6 +208,9 @@ async function addTaskToTimer(taskId: string): Promise<TimerState> {
   };
 
   await saveTimerState(state);
+
+  // Touch task to update lastInteractedAt
+  await updateTask(taskId, {});
 
   // Re-enable blocking with new task's exceptions
   if (currentState.status === 'work') {
@@ -345,13 +355,14 @@ function getRemainingMs(state: TimerState): number {
   return Math.max(0, state.remainingMs - elapsed);
 }
 
-// Keep badge updated every minute
-setInterval(async () => {
-  const state = await getTimerState();
-  if (state.status !== 'idle') {
-    updateBadge(state);
-  }
-}, 30000);
+// Start periodic badge updates via chrome.alarms (survives service worker sleep)
+async function startBadgeAlarm(): Promise<void> {
+  await chrome.alarms.create(ALARM_BADGE_UPDATE, { periodInMinutes: 0.5 });
+}
+
+async function stopBadgeAlarm(): Promise<void> {
+  await chrome.alarms.clear(ALARM_BADGE_UPDATE);
+}
 
 // --- Sound via Offscreen ---
 
@@ -457,7 +468,8 @@ chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendRespons
 
   if (message.type === 'GET_TIMER_STATE') {
     getTimerState().then((state) => {
-      // Return raw state — clients calculate elapsed time locally using startedAt
+      // Update badge whenever popup requests state (keeps badge in sync)
+      updateBadge(state);
       sendResponse({ state });
     });
     return true;
@@ -465,7 +477,8 @@ chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendRespons
 
   if (message.type === 'REFRESH_BLOCKING') {
     getTimerState().then(async (state) => {
-      if (state.status === 'work') {
+      // Refresh blocking rules during work (and paused-work) state
+      if (state.status === 'work' || (state.status === 'paused' && state.pausedPhase === 'work')) {
         await enableBlocking(state.activeTaskIds || []);
       }
       sendResponse({ ok: true });
@@ -478,13 +491,20 @@ chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendRespons
 
 // --- Alarms ---
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === ALARM_WORK_END) {
     onWorkEnd();
   } else if (alarm.name === ALARM_BREAK_END) {
     onBreakEnd();
   } else if (alarm.name === ALARM_DAILY_CLEANUP) {
     runCleanup();
+  } else if (alarm.name === ALARM_BADGE_UPDATE) {
+    const state = await getTimerState();
+    if (state.status !== 'idle') {
+      updateBadge(state);
+    } else {
+      stopBadgeAlarm();
+    }
   }
 });
 
@@ -501,8 +521,11 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onStartup.addListener(async () => {
   // Restore timer state and re-enable blocking if needed
   const state = await getTimerState();
-  if (state.status === 'work') {
-    await enableBlocking(state.activeTaskIds || []);
+  if (state.status !== 'idle') {
+    if (state.status === 'work') {
+      await enableBlocking(state.activeTaskIds || []);
+    }
     updateBadge(state);
+    await startBadgeAlarm();
   }
 });

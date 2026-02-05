@@ -19,6 +19,7 @@ export default defineConfig({
         settings: resolve(__dirname, 'src/settings/settings.html'),
         offscreen: resolve(__dirname, 'src/offscreen/offscreen.html'),
         blocked: resolve(__dirname, 'src/blocked/blocked.html'),
+        dashboard: resolve(__dirname, 'src/dashboard/dashboard.html'),
         'background/service-worker': resolve(__dirname, 'src/background/service-worker.ts'),
       },
       output: {

@@ -7,6 +7,7 @@ export const TASK_EXPIRY_WARNING_DAYS = 3;
 export const ALARM_WORK_END = 'work-timer-end';
 export const ALARM_BREAK_END = 'break-timer-end';
 export const ALARM_DAILY_CLEANUP = 'daily-cleanup';
+export const ALARM_BADGE_UPDATE = 'badge-update';
 
 export const STORAGE_KEYS = {
   TASKS: 'tasks',
