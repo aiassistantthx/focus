@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -21,6 +22,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <Script
+          defer
+          src="http://umami-b4w00kgo4gc84kggwgkg4kgg.46.225.26.104.sslip.io/script.js"
+          data-website-id="b2eda4c7-dfb6-43ae-b7c6-6bb672ce6f48"
+        />
+      </head>
       <body className="bg-bg-dark font-sans text-text-light antialiased">
         {children}
       </body>
