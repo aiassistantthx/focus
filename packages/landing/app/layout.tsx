@@ -25,7 +25,7 @@ export default function RootLayout({
       <head>
         <Script
           defer
-          src="http://umami-b4w00kgo4gc84kggwgkg4kgg.46.225.26.104.sslip.io/script.js"
+          src="https://umami.sparrowapps.io/script.js"
           data-website-id="b2eda4c7-dfb6-43ae-b7c6-6bb672ce6f48"
         />
       </head>
