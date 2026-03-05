@@ -1,3 +1,17 @@
+export interface Project {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: number;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: number;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -8,6 +22,8 @@ export interface Task {
   totalWorkTime: number;
   pomodoroCount: number;
   siteExceptions?: string[];
+  projectId?: string;
+  tagIds?: string[];
 }
 
 export interface DayPlan {

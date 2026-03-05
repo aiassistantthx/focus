@@ -1,19 +1,36 @@
-import { Task } from '../../lib/types';
-import { getTasks, createTask, deleteTask, addTaskToToday, updateTask, getDayPlan } from '../../lib/storage';
+import { Task, Project, Tag } from '../../lib/types';
+import { getTasks, createTask, deleteTask, addTaskToToday, updateTask, getDayPlan, getProjects, getTags } from '../../lib/storage';
 import { TASK_EXPIRY_DAYS, TASK_EXPIRY_WARNING_DAYS, MAX_DAILY_TASKS } from '../../lib/constants';
 import { daysAgo } from '../../lib/utils';
+import { renderFilterBar } from '../components/filter-bar';
+import { renderTaskMetadata } from '../components/task-metadata';
+import { getFilterState, filterTasks } from '../filter-state';
+
+// Store projects and tags for form usage
+let cachedProjects: Project[] = [];
+let cachedTags: Tag[] = [];
+let selectedFormProjectId: string | undefined = undefined;
+let selectedFormTagIds: string[] = [];
 
 export async function renderBacklog(container: HTMLElement, onRefresh: () => void): Promise<void> {
   const allTasks = await getTasks();
-  const backlogTasks = allTasks
-    .filter((t) => t.status === 'backlog')
-    .sort((a, b) => b.lastInteractedAt - a.lastInteractedAt);
+  const projects = await getProjects();
+  const tags = await getTags();
+
+  cachedProjects = projects;
+  cachedTags = tags;
+
+  const filter = getFilterState();
+  const backlogTasks = filterTasks(
+    allTasks.filter((t) => t.status === 'backlog'),
+    filter
+  ).sort((a, b) => b.lastInteractedAt - a.lastInteractedAt);
 
   const plan = await getDayPlan();
   const slotsLeft = MAX_DAILY_TASKS - plan.taskIds.length;
 
   const taskListHtml = backlogTasks.length > 0
-    ? backlogTasks.map((t) => renderBacklogTask(t, slotsLeft > 0)).join('')
+    ? backlogTasks.map((t) => renderBacklogTask(t, slotsLeft > 0, projects, tags)).join('')
     : `<div class="empty-state py-6">
         <p class="text-sm text-white/40">Backlog is empty</p>
         <p class="text-xs text-white/30 mt-1">Add a task below</p>
@@ -21,21 +38,26 @@ export async function renderBacklog(container: HTMLElement, onRefresh: () => voi
 
   container.innerHTML = `
     <div class="px-4 py-3">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center justify-between mb-2">
         <p class="text-xs text-white/40 uppercase tracking-wide font-medium">Backlog</p>
         <span class="text-xs text-white/30">${backlogTasks.length} task${backlogTasks.length !== 1 ? 's' : ''}</span>
       </div>
 
-      <form id="add-task-form" class="flex gap-2 mb-3">
-        <input
-          type="text"
-          id="new-task-input"
-          class="input-field flex-1"
-          placeholder="Add a new task..."
-          maxlength="200"
-          autofocus
-        />
-        <button type="submit" class="btn-primary">Add</button>
+      <div id="filter-bar-container"></div>
+
+      <form id="add-task-form" class="mb-3">
+        <div class="flex gap-2">
+          <input
+            type="text"
+            id="new-task-input"
+            class="input-field flex-1"
+            placeholder="Add a new task..."
+            maxlength="200"
+            autofocus
+          />
+          <button type="submit" class="btn-primary">Add</button>
+        </div>
+        <div id="task-form-metadata" class="task-form-metadata"></div>
       </form>
 
       <div id="backlog-list" class="space-y-2">
@@ -43,6 +65,19 @@ export async function renderBacklog(container: HTMLElement, onRefresh: () => voi
       </div>
     </div>
   `;
+
+  // Render filter bar
+  const filterBarContainer = container.querySelector('#filter-bar-container') as HTMLElement;
+  if (projects.length > 0 || tags.length > 0) {
+    const filterBar = renderFilterBar(projects, tags, onRefresh);
+    filterBarContainer.appendChild(filterBar);
+  }
+
+  // Render task form metadata selectors
+  const metadataContainer = container.querySelector('#task-form-metadata') as HTMLElement;
+  if (projects.length > 0 || tags.length > 0) {
+    renderTaskFormMetadata(metadataContainer, projects, tags);
+  }
 
   // Add task form
   const form = container.querySelector('#add-task-form') as HTMLFormElement;
@@ -52,8 +87,13 @@ export async function renderBacklog(container: HTMLElement, onRefresh: () => voi
     e.preventDefault();
     const title = input.value.trim();
     if (!title) return;
-    await createTask(title);
+    await createTask(title, {
+      projectId: selectedFormProjectId,
+      tagIds: selectedFormTagIds.length > 0 ? selectedFormTagIds : undefined,
+    });
     input.value = '';
+    selectedFormProjectId = undefined;
+    selectedFormTagIds = [];
     onRefresh();
   });
 
@@ -114,13 +154,16 @@ function renderExceptionsSection(task: Task): string {
   `;
 }
 
-function renderBacklogTask(task: Task, canAddToday: boolean): string {
+function renderBacklogTask(task: Task, canAddToday: boolean, projects: Project[], tags: Tag[]): string {
   const age = daysAgo(task.lastInteractedAt);
   const daysUntilExpiry = TASK_EXPIRY_DAYS - age;
   const isExpiring = daysUntilExpiry <= TASK_EXPIRY_WARNING_DAYS && daysUntilExpiry > 0;
   const expiryBadge = isExpiring
     ? `<span class="badge badge-warning">Expires in ${daysUntilExpiry}d</span>`
     : '';
+
+  // Build metadata HTML
+  const metadataHtml = renderTaskMetadataHtml(task, projects, tags);
 
   return `
     <div class="task-card" data-task-id="${task.id}">
@@ -131,6 +174,7 @@ function renderBacklogTask(task: Task, canAddToday: boolean): string {
             ${expiryBadge}
             ${task.pomodoroCount > 0 ? `<span class="text-xs text-white/30">${task.pomodoroCount} pom</span>` : ''}
           </div>
+          ${metadataHtml}
         </div>
         <div class="flex items-center gap-1 ml-2 shrink-0">
           ${canAddToday ? `
@@ -151,6 +195,85 @@ function renderBacklogTask(task: Task, canAddToday: boolean): string {
       ${renderExceptionsSection(task)}
     </div>
   `;
+}
+
+function renderTaskMetadataHtml(task: Task, projects: Project[], tags: Tag[]): string {
+  const project = task.projectId ? projects.find((p) => p.id === task.projectId) : null;
+  const taskTags = (task.tagIds ?? [])
+    .map((id) => tags.find((t) => t.id === id))
+    .filter((t): t is Tag => t !== undefined);
+
+  if (!project && taskTags.length === 0) {
+    return '';
+  }
+
+  let html = '<div class="task-metadata">';
+
+  if (project) {
+    html += `<span class="project-badge" style="--project-color: ${project.color}">${escapeHtml(project.name)}</span>`;
+  }
+
+  for (const tag of taskTags) {
+    html += `<span class="tag-badge" style="--tag-color: ${tag.color}">${escapeHtml(tag.name)}</span>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderTaskFormMetadata(container: HTMLElement, projects: Project[], tags: Tag[]): void {
+  // Project selector
+  if (projects.length > 0) {
+    const projectSelect = document.createElement('select');
+    projectSelect.className = 'task-form-project-select';
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'No project';
+    projectSelect.appendChild(defaultOption);
+
+    for (const project of projects) {
+      const option = document.createElement('option');
+      option.value = project.id;
+      option.textContent = project.name;
+      projectSelect.appendChild(option);
+    }
+
+    projectSelect.addEventListener('change', () => {
+      selectedFormProjectId = projectSelect.value || undefined;
+    });
+
+    container.appendChild(projectSelect);
+  }
+
+  // Tags selector
+  if (tags.length > 0) {
+    const tagsContainer = document.createElement('div');
+    tagsContainer.className = 'task-form-tags';
+
+    for (const tag of tags) {
+      const tagBtn = document.createElement('button');
+      tagBtn.type = 'button';
+      tagBtn.className = 'task-form-tag-btn';
+      tagBtn.style.setProperty('--tag-color', tag.color);
+      tagBtn.textContent = tag.name;
+
+      tagBtn.addEventListener('click', () => {
+        const index = selectedFormTagIds.indexOf(tag.id);
+        if (index === -1) {
+          selectedFormTagIds.push(tag.id);
+          tagBtn.classList.add('selected');
+        } else {
+          selectedFormTagIds.splice(index, 1);
+          tagBtn.classList.remove('selected');
+        }
+      });
+
+      tagsContainer.appendChild(tagBtn);
+    }
+
+    container.appendChild(tagsContainer);
+  }
 }
 
 function attachExceptionHandlers(container: HTMLElement, onRefresh: () => void): void {

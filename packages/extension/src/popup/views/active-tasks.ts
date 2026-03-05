@@ -1,4 +1,4 @@
-import { Task, TimerState } from '../../lib/types';
+import { Task, TimerState, Project, Tag } from '../../lib/types';
 import {
   getDayPlan,
   getTasks,
@@ -7,11 +7,19 @@ import {
   moveTaskToTomorrow,
   deleteTask,
   updateTask,
+  getProjects,
+  getTags,
 } from '../../lib/storage';
 import { MAX_DAILY_TASKS } from '../../lib/constants';
 import { formatTime } from '../../lib/utils';
+import { renderFilterBar } from '../components/filter-bar';
+import { getFilterState, filterTasks } from '../filter-state';
 
 let timerInterval: ReturnType<typeof setInterval> | null = null;
+
+// Cache for projects and tags
+let cachedProjects: Project[] = [];
+let cachedTags: Tag[] = [];
 
 export async function renderActiveTasks(
   container: HTMLElement,
@@ -21,9 +29,18 @@ export async function renderActiveTasks(
 ): Promise<void> {
   const plan = await getDayPlan();
   const allTasks = await getTasks();
-  const activeTasks = plan.taskIds
+  const projects = await getProjects();
+  const tags = await getTags();
+
+  cachedProjects = projects;
+  cachedTags = tags;
+
+  const filter = getFilterState();
+  const allActiveTasks = plan.taskIds
     .map((id) => allTasks.find((t) => t.id === id))
     .filter((t): t is Task => t !== undefined && t.status !== 'completed' && t.status !== 'deleted');
+
+  const activeTasks = filterTasks(allActiveTasks, filter);
 
   if (timerInterval) {
     clearInterval(timerInterval);
@@ -41,8 +58,8 @@ export async function renderActiveTasks(
     const workingTasks = activeTasks.filter((t) => activeTaskIds.includes(t.id));
     const otherTasks = activeTasks.filter((t) => !activeTaskIds.includes(t.id));
 
-    const workingTasksHtml = workingTasks.map((t) => renderWorkingTaskCard(t)).join('');
-    const otherTasksHtml = otherTasks.map((t) => renderAddableTaskCard(t, timerState)).join('');
+    const workingTasksHtml = workingTasks.map((t) => renderWorkingTaskCard(t, projects, tags)).join('');
+    const otherTasksHtml = otherTasks.map((t) => renderAddableTaskCard(t, timerState, projects, tags)).join('');
 
     // Show "add more" section only during work or paused state
     const canAddTasks = timerState.status === 'work' || timerState.status === 'paused';
@@ -111,7 +128,7 @@ export async function renderActiveTasks(
     container.querySelector('#btn-go-backlog')?.addEventListener('click', onNavigateToBacklog);
   } else {
     // Tasks present, timer idle
-    const tasksHtml = activeTasks.map((t) => renderIdleTaskCard(t)).join('');
+    const tasksHtml = activeTasks.map((t) => renderIdleTaskCard(t, projects, tags)).join('');
     const slotsLeft = MAX_DAILY_TASKS - activeTasks.length;
     const addMore = slotsLeft > 0
       ? `<button id="btn-add-more" class="btn-ghost w-full text-center py-2">+ Add task (${slotsLeft} slot${slotsLeft > 1 ? 's' : ''} left)</button>`
@@ -122,10 +139,18 @@ export async function renderActiveTasks(
         <div class="flex items-center justify-between">
           <p class="text-xs text-white/40 uppercase tracking-wide font-medium">Today's Tasks</p>
         </div>
+        <div id="filter-bar-container"></div>
         ${tasksHtml}
         ${addMore}
       </div>
     `;
+
+    // Render filter bar
+    const filterBarContainer = container.querySelector('#filter-bar-container') as HTMLElement;
+    if (projects.length > 0 || tags.length > 0) {
+      const filterBar = renderFilterBar(projects, tags, onRefresh);
+      filterBarContainer.appendChild(filterBar);
+    }
 
     container.querySelector('#btn-add-more')?.addEventListener('click', onNavigateToBacklog);
   }
@@ -194,7 +219,7 @@ function renderTimer(state: TimerState): string {
 }
 
 // Card for tasks that are currently being worked on
-function renderWorkingTaskCard(task: Task): string {
+function renderWorkingTaskCard(task: Task, projects: Project[], tags: Tag[]): string {
   const timeSpent = task.totalWorkTime > 0
     ? `<span class="text-xs text-white/30">${Math.floor(task.totalWorkTime / 60000)}m</span>`
     : '';
@@ -202,6 +227,8 @@ function renderWorkingTaskCard(task: Task): string {
   const pomodoroCount = task.pomodoroCount > 0
     ? `<span class="text-xs text-white/30">${task.pomodoroCount} pom</span>`
     : '';
+
+  const metadataHtml = renderTaskMetadataHtml(task, projects, tags);
 
   return `
     <div class="task-card working" data-task-id="${task.id}">
@@ -212,6 +239,7 @@ function renderWorkingTaskCard(task: Task): string {
           ${pomodoroCount}
         </div>
       </div>
+      ${metadataHtml}
       <div class="flex items-center gap-1 mt-2">
         <span class="badge badge-warning">Working...</span>
         <div class="flex-1"></div>
@@ -228,7 +256,7 @@ function renderWorkingTaskCard(task: Task): string {
 }
 
 // Card for tasks that can be added to current session
-function renderAddableTaskCard(task: Task, timerState: TimerState): string {
+function renderAddableTaskCard(task: Task, timerState: TimerState, projects: Project[], tags: Tag[]): string {
   const timeSpent = task.totalWorkTime > 0
     ? `<span class="text-xs text-white/30">${Math.floor(task.totalWorkTime / 60000)}m</span>`
     : '';
@@ -236,6 +264,8 @@ function renderAddableTaskCard(task: Task, timerState: TimerState): string {
   const pomodoroCount = task.pomodoroCount > 0
     ? `<span class="text-xs text-white/30">${task.pomodoroCount} pom</span>`
     : '';
+
+  const metadataHtml = renderTaskMetadataHtml(task, projects, tags);
 
   return `
     <div class="task-card" data-task-id="${task.id}">
@@ -247,6 +277,7 @@ function renderAddableTaskCard(task: Task, timerState: TimerState): string {
           <button class="btn-ghost text-xs add-task-btn" data-task-id="${task.id}">+ Add</button>
         </div>
       </div>
+      ${metadataHtml}
       <div class="flex items-center gap-1 mt-2">
         <div class="flex-1"></div>
         <button class="btn-icon task-action" data-action="complete" data-task-id="${task.id}" data-tooltip="Complete">
@@ -267,7 +298,7 @@ function renderAddableTaskCard(task: Task, timerState: TimerState): string {
 }
 
 // Card for idle state (with Start button)
-function renderIdleTaskCard(task: Task): string {
+function renderIdleTaskCard(task: Task, projects: Project[], tags: Tag[]): string {
   const timeSpent = task.totalWorkTime > 0
     ? `<span class="text-xs text-white/30">${Math.floor(task.totalWorkTime / 60000)}m</span>`
     : '';
@@ -275,6 +306,8 @@ function renderIdleTaskCard(task: Task): string {
   const pomodoroCount = task.pomodoroCount > 0
     ? `<span class="text-xs text-white/30">${task.pomodoroCount} pom</span>`
     : '';
+
+  const metadataHtml = renderTaskMetadataHtml(task, projects, tags);
 
   return `
     <div class="task-card active-task" data-task-id="${task.id}">
@@ -286,6 +319,7 @@ function renderIdleTaskCard(task: Task): string {
           <button class="btn-primary text-xs start-task-btn" data-task-id="${task.id}">Start</button>
         </div>
       </div>
+      ${metadataHtml}
       <div class="flex items-center gap-1 mt-2">
         <div class="flex-1"></div>
         <button class="btn-icon task-action" data-action="complete" data-task-id="${task.id}" data-tooltip="Complete">
@@ -304,6 +338,30 @@ function renderIdleTaskCard(task: Task): string {
       ${renderExceptionsSection(task)}
     </div>
   `;
+}
+
+function renderTaskMetadataHtml(task: Task, projects: Project[], tags: Tag[]): string {
+  const project = task.projectId ? projects.find((p) => p.id === task.projectId) : null;
+  const taskTags = (task.tagIds ?? [])
+    .map((id) => tags.find((t) => t.id === id))
+    .filter((t): t is Tag => t !== undefined);
+
+  if (!project && taskTags.length === 0) {
+    return '';
+  }
+
+  let html = '<div class="task-metadata">';
+
+  if (project) {
+    html += `<span class="project-badge" style="--project-color: ${project.color}">${escapeHtml(project.name)}</span>`;
+  }
+
+  for (const tag of taskTags) {
+    html += `<span class="tag-badge" style="--tag-color: ${tag.color}">${escapeHtml(tag.name)}</span>`;
+  }
+
+  html += '</div>';
+  return html;
 }
 
 function renderExceptionsSection(task: Task): string {

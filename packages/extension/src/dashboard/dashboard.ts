@@ -1,5 +1,5 @@
-import { getTasks, getAllDailyStats } from '../lib/storage';
-import { Task, DailyStats } from '../lib/types';
+import { getTasks, getAllDailyStats, getProjects, getTags } from '../lib/storage';
+import { Task, DailyStats, Project, Tag } from '../lib/types';
 
 type Period = 'today' | 'week' | 'month' | 'all' | 'custom';
 type ChartMode = 'time' | 'tasks';
@@ -9,6 +9,8 @@ let customDateRange: { start: string; end: string } | null = null;
 let currentChartMode: ChartMode = 'time';
 let cachedTasks: Task[] = [];
 let cachedDailyStats: DailyStats[] = [];
+let cachedProjects: Project[] = [];
+let cachedTags: Tag[] = [];
 
 // --- Date Helpers ---
 
@@ -537,21 +539,51 @@ function renderTasksTable(tasks: Task[], period: Period): void {
 
   noTasks.classList.add('hidden');
 
-  container.innerHTML = completedTasks.map(task => `
-    <div class="task-row">
-      <div class="flex items-center gap-3">
-        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-        </svg>
-        <span class="font-medium truncate">${escapeHtml(task.title)}</span>
+  container.innerHTML = completedTasks.map(task => {
+    const metadataHtml = renderTaskMetadata(task);
+    return `
+      <div class="task-row">
+        <div class="flex items-center gap-3 min-w-0">
+          <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          <div class="min-w-0">
+            <span class="font-medium truncate block">${escapeHtml(task.title)}</span>
+            ${metadataHtml}
+          </div>
+        </div>
+        <div class="flex items-center gap-6 text-sm text-white/50 flex-shrink-0">
+          <span>${task.pomodoroCount} pom</span>
+          <span>${formatDuration(task.totalWorkTime)}</span>
+          <span>${task.completedAt ? formatDate(new Date(task.completedAt).toISOString().split('T')[0]) : '—'}</span>
+        </div>
       </div>
-      <div class="flex items-center gap-6 text-sm text-white/50 flex-shrink-0">
-        <span>${task.pomodoroCount} pom</span>
-        <span>${formatDuration(task.totalWorkTime)}</span>
-        <span>${task.completedAt ? formatDate(new Date(task.completedAt).toISOString().split('T')[0]) : '—'}</span>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+}
+
+function renderTaskMetadata(task: Task): string {
+  const project = task.projectId ? cachedProjects.find(p => p.id === task.projectId) : null;
+  const taskTags = (task.tagIds ?? [])
+    .map(id => cachedTags.find(t => t.id === id))
+    .filter((t): t is Tag => t !== undefined);
+
+  if (!project && taskTags.length === 0) {
+    return '';
+  }
+
+  let html = '<div class="task-metadata">';
+
+  if (project) {
+    html += `<span class="project-badge" style="--project-color: ${project.color}">${escapeHtml(project.name)}</span>`;
+  }
+
+  for (const tag of taskTags) {
+    html += `<span class="tag-badge" style="--tag-color: ${tag.color}">${escapeHtml(tag.name)}</span>`;
+  }
+
+  html += '</div>';
+  return html;
 }
 
 // --- UI Updates ---
@@ -575,9 +607,11 @@ function updateUI(stats: Stats): void {
 }
 
 async function loadData(): Promise<void> {
-  [cachedTasks, cachedDailyStats] = await Promise.all([
+  [cachedTasks, cachedDailyStats, cachedProjects, cachedTags] = await Promise.all([
     getTasks(),
     getAllDailyStats(),
+    getProjects(),
+    getTags(),
   ]);
 
   renderAll();

@@ -1,5 +1,5 @@
-import { Task, DayPlan, TimerState, PomodoroRecord, Settings, DailyStats } from './types';
-import { STORAGE_KEYS, DEFAULT_SETTINGS, MAX_DAILY_TASKS } from './constants';
+import { Task, DayPlan, TimerState, PomodoroRecord, Settings, DailyStats, Project, Tag } from './types';
+import { STORAGE_KEYS, DEFAULT_SETTINGS, MAX_DAILY_TASKS, ENTITY_COLORS } from './constants';
 import { generateId, getToday, getTomorrow } from './utils';
 
 // --- Generic helpers ---
@@ -28,7 +28,10 @@ export async function saveTasks(tasks: Task[]): Promise<void> {
   await set(STORAGE_KEYS.TASKS, tasks);
 }
 
-export async function createTask(title: string): Promise<Task> {
+export async function createTask(
+  title: string,
+  options?: { projectId?: string; tagIds?: string[] }
+): Promise<Task> {
   const tasks = await getTasks();
   const now = Date.now();
   const task: Task = {
@@ -39,6 +42,8 @@ export async function createTask(title: string): Promise<Task> {
     lastInteractedAt: now,
     totalWorkTime: 0,
     pomodoroCount: 0,
+    projectId: options?.projectId,
+    tagIds: options?.tagIds,
   };
   tasks.push(task);
   await saveTasks(tasks);
@@ -202,4 +207,102 @@ export async function updateDailyStats(date: string, updates: Partial<DailyStats
     all[index] = { ...all[index], ...updates };
   }
   await set(STORAGE_KEYS.DAILY_STATS, all);
+}
+
+// --- Projects ---
+
+export async function getProjects(): Promise<Project[]> {
+  return get<Project[]>(STORAGE_KEYS.PROJECTS, []);
+}
+
+export async function createProject(name: string, color?: string): Promise<Project> {
+  const projects = await getProjects();
+  const usedColors = new Set(projects.map((p) => p.color));
+  const availableColor = color ?? ENTITY_COLORS.find((c) => !usedColors.has(c)) ?? ENTITY_COLORS[0];
+  const project: Project = {
+    id: generateId(),
+    name,
+    color: availableColor,
+    createdAt: Date.now(),
+  };
+  projects.push(project);
+  await set(STORAGE_KEYS.PROJECTS, projects);
+  return project;
+}
+
+export async function updateProject(id: string, updates: Partial<Omit<Project, 'id' | 'createdAt'>>): Promise<Project | undefined> {
+  const projects = await getProjects();
+  const index = projects.findIndex((p) => p.id === id);
+  if (index === -1) return undefined;
+  projects[index] = { ...projects[index], ...updates };
+  await set(STORAGE_KEYS.PROJECTS, projects);
+  return projects[index];
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const projects = await getProjects();
+  const filtered = projects.filter((p) => p.id !== id);
+  await set(STORAGE_KEYS.PROJECTS, filtered);
+
+  // Remove projectId from tasks that had this project
+  const tasks = await getTasks();
+  let updated = false;
+  for (const task of tasks) {
+    if (task.projectId === id) {
+      task.projectId = undefined;
+      updated = true;
+    }
+  }
+  if (updated) {
+    await saveTasks(tasks);
+  }
+}
+
+// --- Tags ---
+
+export async function getTags(): Promise<Tag[]> {
+  return get<Tag[]>(STORAGE_KEYS.TAGS, []);
+}
+
+export async function createTag(name: string, color?: string): Promise<Tag> {
+  const tags = await getTags();
+  const usedColors = new Set(tags.map((t) => t.color));
+  const availableColor = color ?? ENTITY_COLORS.find((c) => !usedColors.has(c)) ?? ENTITY_COLORS[0];
+  const tag: Tag = {
+    id: generateId(),
+    name,
+    color: availableColor,
+    createdAt: Date.now(),
+  };
+  tags.push(tag);
+  await set(STORAGE_KEYS.TAGS, tags);
+  return tag;
+}
+
+export async function updateTag(id: string, updates: Partial<Omit<Tag, 'id' | 'createdAt'>>): Promise<Tag | undefined> {
+  const tags = await getTags();
+  const index = tags.findIndex((t) => t.id === id);
+  if (index === -1) return undefined;
+  tags[index] = { ...tags[index], ...updates };
+  await set(STORAGE_KEYS.TAGS, tags);
+  return tags[index];
+}
+
+export async function deleteTag(id: string): Promise<void> {
+  const tags = await getTags();
+  const filtered = tags.filter((t) => t.id !== id);
+  await set(STORAGE_KEYS.TAGS, filtered);
+
+  // Remove tagId from tasks that had this tag
+  const tasks = await getTasks();
+  let updated = false;
+  for (const task of tasks) {
+    if (task.tagIds?.includes(id)) {
+      task.tagIds = task.tagIds.filter((tid) => tid !== id);
+      updated = true;
+    }
+  }
+  if (updated) {
+    await saveTasks(tasks);
+  }
 }

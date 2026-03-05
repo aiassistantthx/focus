@@ -94,3 +94,154 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  flex-wrap: wrap;
+}
+
+.filter-project-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: white;
+  cursor: pointer;
+  outline: none;
+}
+
+.filter-project-select:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.filter-project-select:focus {
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.filter-project-select option {
+  background: #1a1a2e;
+  color: white;
+}
+
+.filter-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.filter-tag-btn {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--tag-color, rgba(255, 255, 255, 0.2));
+  background: transparent;
+  color: var(--tag-color, rgba(255, 255, 255, 0.7));
+}
+
+.filter-tag-btn:hover {
+  background: var(--tag-color, rgba(255, 255, 255, 0.1));
+  color: white;
+}
+
+.filter-tag-btn.active {
+  background: var(--tag-color, rgba(255, 255, 255, 0.2));
+  color: white;
+}
+
+/* Task metadata (project + tags badges) */
+.task-metadata {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.project-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  background: var(--project-color, #8B5CF6);
+  color: white;
+}
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid var(--tag-color, rgba(255, 255, 255, 0.3));
+  color: var(--tag-color, rgba(255, 255, 255, 0.7));
+  background: transparent;
+}
+
+/* Tag/Project selector in task creation form */
+.task-form-metadata {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.task-form-project-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: white;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.task-form-project-select:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.task-form-project-select option {
+  background: #1a1a2e;
+  color: white;
+}
+
+.task-form-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.task-form-tag-btn {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.task-form-tag-btn:hover {
+  border-color: var(--tag-color, rgba(255, 255, 255, 0.3));
+  color: var(--tag-color, rgba(255, 255, 255, 0.7));
+}
+
+.task-form-tag-btn.selected {
+  border-color: var(--tag-color, rgba(255, 255, 255, 0.5));
+  background: var(--tag-color, rgba(255, 255, 255, 0.1));
+  color: white;
+}

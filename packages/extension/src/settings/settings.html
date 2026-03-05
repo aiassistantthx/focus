@@ -85,6 +85,32 @@
       </div>
     </section>
 
+    <!-- Projects -->
+    <section class="mb-8">
+      <h2 class="text-sm text-white/40 uppercase tracking-wide font-medium mb-3">Projects</h2>
+      <div class="bg-card-dark rounded-lg p-4 space-y-4">
+        <form id="add-project-form" class="flex gap-2">
+          <input type="text" id="project-name-input" class="input-field flex-1" placeholder="Project name" maxlength="30" />
+          <div id="project-color-picker" class="flex gap-1 items-center"></div>
+          <button type="submit" class="px-3 py-1.5 bg-primary/20 text-primary text-sm font-medium rounded-lg hover:bg-primary/30 transition-colors">Add</button>
+        </form>
+        <div id="projects-list" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- Tags -->
+    <section class="mb-8">
+      <h2 class="text-sm text-white/40 uppercase tracking-wide font-medium mb-3">Tags</h2>
+      <div class="bg-card-dark rounded-lg p-4 space-y-4">
+        <form id="add-tag-form" class="flex gap-2">
+          <input type="text" id="tag-name-input" class="input-field flex-1" placeholder="Tag name" maxlength="20" />
+          <div id="tag-color-picker" class="flex gap-1 items-center"></div>
+          <button type="submit" class="px-3 py-1.5 bg-primary/20 text-primary text-sm font-medium rounded-lg hover:bg-primary/30 transition-colors">Add</button>
+        </form>
+        <div id="tags-list" class="space-y-2"></div>
+      </div>
+    </section>
+
     <div id="save-status" class="text-sm text-break-green hidden text-center">Settings saved</div>
   </div>
 

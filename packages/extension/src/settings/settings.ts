@@ -1,14 +1,23 @@
-import { getSettings, saveSettings } from '../lib/storage';
-import { Settings } from '../lib/types';
-import { DEFAULT_BLOCKED_SITES } from '../lib/constants';
+import { getSettings, saveSettings, getProjects, createProject, deleteProject, getTags, createTag, deleteTag } from '../lib/storage';
+import { Settings, Project, Tag } from '../lib/types';
+import { DEFAULT_BLOCKED_SITES, ENTITY_COLORS } from '../lib/constants';
 
 let settings: Settings;
+let projects: Project[] = [];
+let tags: Tag[] = [];
+let selectedProjectColor = ENTITY_COLORS[0];
+let selectedTagColor = ENTITY_COLORS[0];
 
 async function init(): Promise<void> {
   settings = await getSettings();
+  projects = await getProjects();
+  tags = await getTags();
   populateForm();
   attachListeners();
   renderSiteLists();
+  renderColorPickers();
+  renderProjectsList();
+  renderTagsList();
 }
 
 function populateForm(): void {
@@ -61,6 +70,32 @@ function attachListeners(): void {
     const btn = document.getElementById('toggle-defaults')!;
     list.classList.toggle('hidden');
     btn.textContent = list.classList.contains('hidden') ? 'Show default blocked sites' : 'Hide default blocked sites';
+  });
+
+  // Add project
+  (document.getElementById('add-project-form') as HTMLFormElement).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('project-name-input') as HTMLInputElement;
+    const name = input.value.trim();
+    if (!name) return;
+    await createProject(name, selectedProjectColor);
+    projects = await getProjects();
+    input.value = '';
+    renderProjectsList();
+    showSaveStatus();
+  });
+
+  // Add tag
+  (document.getElementById('add-tag-form') as HTMLFormElement).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('tag-name-input') as HTMLInputElement;
+    const name = input.value.trim();
+    if (!name) return;
+    await createTag(name, selectedTagColor);
+    tags = await getTags();
+    input.value = '';
+    renderTagsList();
+    showSaveStatus();
   });
 }
 
@@ -142,6 +177,98 @@ function escapeHtml(str: string): string {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function showSaveStatus(): void {
+  const status = document.getElementById('save-status')!;
+  status.classList.remove('hidden');
+  setTimeout(() => status.classList.add('hidden'), 1500);
+}
+
+function renderColorPickers(): void {
+  // Project color picker
+  const projectPicker = document.getElementById('project-color-picker')!;
+  projectPicker.innerHTML = ENTITY_COLORS.map((color, i) => `
+    <button type="button" class="color-dot${i === 0 ? ' selected' : ''}" data-color="${color}" data-picker="project" style="background-color: ${color}"></button>
+  `).join('');
+
+  projectPicker.querySelectorAll('.color-dot').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLElement;
+      selectedProjectColor = target.dataset.color!;
+      projectPicker.querySelectorAll('.color-dot').forEach((b) => b.classList.remove('selected'));
+      target.classList.add('selected');
+    });
+  });
+
+  // Tag color picker
+  const tagPicker = document.getElementById('tag-color-picker')!;
+  tagPicker.innerHTML = ENTITY_COLORS.map((color, i) => `
+    <button type="button" class="color-dot${i === 0 ? ' selected' : ''}" data-color="${color}" data-picker="tag" style="background-color: ${color}"></button>
+  `).join('');
+
+  tagPicker.querySelectorAll('.color-dot').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLElement;
+      selectedTagColor = target.dataset.color!;
+      tagPicker.querySelectorAll('.color-dot').forEach((b) => b.classList.remove('selected'));
+      target.classList.add('selected');
+    });
+  });
+}
+
+function renderProjectsList(): void {
+  const list = document.getElementById('projects-list')!;
+  if (projects.length === 0) {
+    list.innerHTML = '<p class="text-xs text-white/30">No projects yet</p>';
+    return;
+  }
+
+  list.innerHTML = projects.map((project) => `
+    <div class="entity-item">
+      <span class="entity-color" style="background-color: ${project.color}"></span>
+      <span class="entity-name">${escapeHtml(project.name)}</span>
+      <button class="entity-delete" data-id="${project.id}" data-type="project">&times;</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.entity-delete[data-type="project"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const target = e.currentTarget as HTMLElement;
+      const id = target.dataset.id!;
+      await deleteProject(id);
+      projects = await getProjects();
+      renderProjectsList();
+      showSaveStatus();
+    });
+  });
+}
+
+function renderTagsList(): void {
+  const list = document.getElementById('tags-list')!;
+  if (tags.length === 0) {
+    list.innerHTML = '<p class="text-xs text-white/30">No tags yet</p>';
+    return;
+  }
+
+  list.innerHTML = tags.map((tag) => `
+    <div class="entity-item">
+      <span class="entity-color" style="background-color: ${tag.color}"></span>
+      <span class="entity-name">${escapeHtml(tag.name)}</span>
+      <button class="entity-delete" data-id="${tag.id}" data-type="tag">&times;</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.entity-delete[data-type="tag"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const target = e.currentTarget as HTMLElement;
+      const id = target.dataset.id!;
+      await deleteTag(id);
+      tags = await getTags();
+      renderTagsList();
+      showSaveStatus();
+    });
+  });
 }
 
 init();

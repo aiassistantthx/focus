@@ -16,6 +16,8 @@ export const STORAGE_KEYS = {
   POMODORO_RECORDS: 'pomodoroRecords',
   SETTINGS: 'settings',
   DAILY_STATS: 'dailyStats',
+  PROJECTS: 'projects',
+  TAGS: 'tags',
 } as const;
 
 export const DEFAULT_BLOCKED_SITES: string[] = [
@@ -81,3 +83,14 @@ export const DEFAULT_SETTINGS = {
   soundVolume: 80,
   blockingEnabled: true,
 };
+
+export const ENTITY_COLORS = [
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#F59E0B', // Amber
+  '#10B981', // Emerald
+  '#3B82F6', // Blue
+  '#EF4444', // Red
+  '#6366F1', // Indigo
+  '#14B8A6', // Teal
+];

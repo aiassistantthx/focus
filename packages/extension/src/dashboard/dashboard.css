@@ -116,3 +116,34 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   cursor: pointer;
 }
+
+/* Task metadata (project + tags badges) */
+.task-metadata {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.project-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  background: var(--project-color, #8B5CF6);
+  color: white;
+}
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid var(--tag-color, rgba(255, 255, 255, 0.3));
+  color: var(--tag-color, rgba(255, 255, 255, 0.7));
+  background: transparent;
+}
